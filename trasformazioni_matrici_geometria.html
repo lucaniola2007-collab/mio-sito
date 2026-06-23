@@ -1,0 +1,171 @@
+<style>
+.gvp{
+  display:flex;
+  gap:35px;                 /* aumenta distanza tra i 3 blocchi */
+  justify-content:center;
+  flex-wrap:wrap;
+  padding:0.5rem 0 1rem
+}
+
+.gvp-panel{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;                 /* spazio verticale interno */
+  width:220px;              /* ogni pannello ha più respiro */
+}
+
+.gvp-title{
+  font-size:13px;
+  font-weight:500;
+  color:var(--color-text-primary);
+  text-align:center
+}
+
+.gvp-caption{
+  font-size:11px;
+  color:var(--color-text-secondary);
+  text-align:center;
+  max-width:220px;          /* prima era troppo stretto */
+  line-height:1.5
+}
+
+.gvp-ctrl{
+  display:flex;
+  align-items:center;
+  gap:0px;                 /* spazio tra label-slider-valore */
+  font-size:11px;
+  color:var(--color-text-secondary);
+  width:220px;
+}
+
+.gvp-ctrl label{
+  min-width:40px;           /* "shear c" non schiacciato */
+  font-size:11px
+}
+
+.gvp-ctrl input{
+  flex:1
+}
+
+.gvp-ctrl span{
+  min-width:30px;           /* spazio per 0.90 */
+  text-align:right;
+  font-family:monospace;
+  font-size:11px
+}
+</style>
+<div class="gvp" id="gvp"></div>
+<script>
+(function(){
+const dark=matchMedia('(prefers-color-scheme:dark)').matches;
+const BG=dark?'#2c2c2a':'#f1efe8';
+const GRID=dark?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.07)';
+const AX=dark?'rgba(255,255,255,0.22)':'rgba(0,0,0,0.2)';
+const OR=dark?'rgba(255,255,255,0.25)':'rgba(0,0,0,0.25)';
+const GH=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';
+const PAL=[
+  {f:'rgba(127,119,221,0.22)',s:'#7F77DD',e1:'#534AB7',e2:'#7F77DD'},
+  {f:'rgba(29,158,117,0.2)',  s:'#1D9E75',e1:'#0F6E56',e2:'#1D9E75'},
+  {f:'rgba(216,90,48,0.2)',   s:'#D85A30',e1:'#993C1D',e2:'#D85A30'},
+];
+const dpr=Math.min(devicePixelRatio||1,2),SZ=185,SC=43;
+
+function mkC(){
+  const c=document.createElement('canvas');
+  c.width=SZ*dpr;c.height=SZ*dpr;
+  c.style.cssText=`width:${SZ}px;height:${SZ}px;border-radius:8px`;
+  return c;
+}
+
+function draw(cv,M,p){
+  const ctx=cv.getContext('2d');
+  ctx.save();ctx.scale(dpr,dpr);
+  const ox=SZ/2,oy=SZ/2;
+  const sc=(mx,my)=>[ox+mx*SC,oy-my*SC];
+  const tr=(a,b)=>[M[0][0]*a+M[0][1]*b,M[1][0]*a+M[1][1]*b];
+  ctx.clearRect(0,0,SZ,SZ);
+  ctx.fillStyle=BG;ctx.fillRect(0,0,SZ,SZ);
+  for(let i=-4;i<=4;i++){
+    ctx.strokeStyle=i===0?AX:GRID;ctx.lineWidth=0.7;
+    let[p1x,p1y]=sc(...tr(i,-4)),[p2x,p2y]=sc(...tr(i,4));
+    ctx.beginPath();ctx.moveTo(p1x,p1y);ctx.lineTo(p2x,p2y);ctx.stroke();
+    [p1x,p1y]=sc(...tr(-4,i));[p2x,p2y]=sc(...tr(4,i));
+    ctx.beginPath();ctx.moveTo(p1x,p1y);ctx.lineTo(p2x,p2y);ctx.stroke();
+  }
+  ctx.fillStyle=AX;ctx.beginPath();ctx.arc(ox,oy,2.5,0,Math.PI*2);ctx.fill();
+  const arw=(x1,y1,x2,y2,col,w)=>{
+    const ang=Math.atan2(y2-y1,x2-x1);
+    ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=w;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-7*Math.cos(ang-.4),y2-7*Math.sin(ang-.4));
+    ctx.lineTo(x2-7*Math.cos(ang+.4),y2-7*Math.sin(ang+.4));
+    ctx.closePath();ctx.fill();
+  };
+  arw(...sc(0,0),...sc(1,0),GH,1.2);
+  arw(...sc(0,0),...sc(0,1),GH,1.2);
+  const sq=[[0,0],[1,0],[1,1],[0,1]];
+  ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.strokeStyle=OR;
+  ctx.beginPath();
+  sq.forEach(([a,b],i)=>{const[px,py]=sc(a,b);i?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+  ctx.closePath();ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=p.f;ctx.strokeStyle=p.s;ctx.lineWidth=2;
+  ctx.beginPath();
+  sq.forEach(([a,b],i)=>{const[px,py]=sc(...tr(a,b));i?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+  ctx.closePath();ctx.fill();ctx.stroke();
+  const[e1x,e1y]=sc(...tr(1,0));
+  const[e2x,e2y]=sc(...tr(0,1));
+  arw(ox,oy,e1x,e1y,p.e1,2.2);
+  arw(ox,oy,e2x,e2y,p.e2,2.2);
+  ctx.font='bold 11px sans-serif';
+  ctx.fillStyle=p.e1;ctx.fillText('e₁',e1x+5,e1y-3);
+  ctx.fillStyle=p.e2;ctx.fillText('e₂',e2x+5,e2y-3);
+  ctx.restore();
+}
+
+const DEFS=[
+  {title:'Diagonale',pal:PAL[0],caption:'La griglia resta rettangolare. Solo scalatura.',v:{a:2,b:.5},
+   mat:v=>[[v.a,0],[0,v.b]],
+   ctrls:[{l:'scala x',k:'a',min:.3,max:2,step:.05},{l:'scala y',k:'b',min:.3,max:2,step:.05}]},
+  {title:'Triang. inferiore',pal:PAL[1],caption:'e₂ resta verticale. Le linee orizzontali si inclinano.',v:{c:1},
+   mat:v=>[[1,0],[v.c,1]],
+   ctrls:[{l:'shear c',k:'c',min:-1.8,max:1.8,step:.05}]},
+  {title:'Triang. superiore',pal:PAL[2],caption:'e₁ resta orizzontale. Le linee verticali si inclinano.',v:{c:1},
+   mat:v=>[[1,v.c],[0,1]],
+   ctrls:[{l:'shear c',k:'c',min:-1.8,max:1.8,step:.05}]},
+];
+
+const vp=document.getElementById('gvp');
+DEFS.forEach(def=>{
+  const panel=document.createElement('div');
+  panel.className='gvp-panel';
+  const t=document.createElement('div');
+  t.className='gvp-title';t.textContent=def.title;
+  panel.appendChild(t);
+  const cv=mkC();panel.appendChild(cv);
+  const cap=document.createElement('div');
+  cap.className='gvp-caption';cap.textContent=def.caption;
+  panel.appendChild(cap);
+  function redraw(){draw(cv,def.mat(def.v),def.pal);}
+  def.ctrls.forEach(ctrl=>{
+    const row=document.createElement('div');row.className='gvp-ctrl';
+    const lbl=document.createElement('label');lbl.textContent=ctrl.l;
+    const inp=document.createElement('input');
+    inp.type='range';inp.min=ctrl.min;inp.max=ctrl.max;inp.step=ctrl.step;inp.value=def.v[ctrl.k];
+    const sp=document.createElement('span');
+    sp.textContent=(+def.v[ctrl.k]).toFixed(2);
+    inp.addEventListener('input',()=>{
+      def.v[ctrl.k]=parseFloat(inp.value);
+      sp.textContent=def.v[ctrl.k].toFixed(2);
+      redraw();
+    });
+    row.appendChild(lbl);row.appendChild(inp);row.appendChild(sp);
+    panel.appendChild(row);
+  });
+  vp.appendChild(panel);
+  redraw();
+});
+})();
+</script>
